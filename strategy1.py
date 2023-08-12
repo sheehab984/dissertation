@@ -46,7 +46,10 @@ def calculate_decision(
 
 
 def run_strategy_1(
-    thresholds: List[float], weights: List[float], prices: List[float]
+    threshold_dc_summaries: pd.DataFrame,
+    thresholds: List[float],
+    weights: List[float],
+    prices: List[float],
 ) -> pd.DataFrame:
     """
     Run strategy based on thresholds, weights, and prices.
@@ -59,9 +62,7 @@ def run_strategy_1(
     Returns:
     - DataFrame containing return prices.
     """
-    threshold_dc_summaries = compute_threshold_dc_summaries(
-        prices, thresholds
-    )
+
     thresholds_last_dc = [None] * len(thresholds)
     thresholds_last_dc_time_interval = [-1] * len(thresholds)
     thresholds_last_decision = [None] * len(thresholds)
@@ -282,16 +283,10 @@ def execute_strategy(
             if isinstance(td, pd.Series) and td["event"] == "DR"
         )
         ur_count = len(thresholds) - dr_count
-        if (
-            new_position == "b"
-            and last_position != "b"
-            and dr_count > ur_count
-        ):
+        if new_position == "b" and last_position != "b" and dr_count > ur_count:
             last_buy_price = price * BUY_COST_MULTIPLIER
         elif (
-            new_position == "s"
-            and last_position != "s"
-            and dr_count < ur_count
+            new_position == "s" and last_position != "s" and dr_count < ur_count
         ):
             return_prices.loc[i, "returns"] = last_buy_price - price
 

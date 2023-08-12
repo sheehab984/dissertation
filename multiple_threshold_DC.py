@@ -3,7 +3,9 @@ import pandas as pd
 from helper.dc import calculate_dc
 
 
-def calculate_dc_indicators(prices, upturn, downturn, p_ext, threshold, chunk_size=4):
+def calculate_dc_indicators(
+    prices, upturn, downturn, p_ext, threshold, chunk_size=4
+):
     all_overshoot = []
     up_cursor = 0
     down_cursor = 0
@@ -20,7 +22,9 @@ def calculate_dc_indicators(prices, upturn, downturn, p_ext, threshold, chunk_si
         if i == 0:
             for j in range(p_ext[i][1], stop):
                 osv_cur = (prices[j] / p_dcc) / (threshold * p_dcc)
-                all_overshoot.append((j, prices[j], osv_cur, p_ext[i][2]))
+                all_overshoot.append(
+                    (j, prices[j], osv_cur, p_ext[i][2])
+                )
             continue
 
         if (
@@ -31,7 +35,9 @@ def calculate_dc_indicators(prices, upturn, downturn, p_ext, threshold, chunk_si
         ):
             for j in range(p_ext[i][1], stop):
                 osv_cur = (prices[j] / p_dcc) / (threshold * p_dcc)
-                all_overshoot.append((j, prices[j], osv_cur, p_ext[i][2]))
+                all_overshoot.append(
+                    (j, prices[j], osv_cur, p_ext[i][2])
+                )
 
     # Split the array into chunks
     chunks = [
@@ -52,7 +58,7 @@ def calculate_dc_indicators(prices, upturn, downturn, p_ext, threshold, chunk_si
     return all_overshoot_with_osv_best
 
 
-def calculate_decision(thresholds, thresholds_last_decision, weights, last_position):
+def calculate_decision(thresholds, thresholds_last_decision, weights):
     decisions = [("s", 0), ("h", 0), ("b", 0)]
     for j, threshold in enumerate(thresholds):
         if thresholds_last_decision[j] == "b":
@@ -93,7 +99,10 @@ def run_strategy_1(thresholds, weights, prices):
         threshold_dc_summaries.append(
             {
                 "dc": pd.DataFrame(
-                    data={"price": np.array(dc_prices), "event": dc_event},
+                    data={
+                        "price": np.array(dc_prices),
+                        "event": dc_event,
+                    },
                     index=dc_indexes,
                 ),
                 "p_ext": pd.DataFrame(
@@ -130,11 +139,15 @@ def run_strategy_1(thresholds, weights, prices):
 
             if i in dc.index:
                 # DC event found for this price index
-                last_price_ext = p_ext[p_ext.index < i].last_valid_index()
+                last_price_ext = p_ext[
+                    p_ext.index < i
+                ].last_valid_index()
                 time_interval_to_dc = i - last_price_ext
 
                 thresholds_last_dc[j] = dc.loc[i]
-                thresholds_last_dc_time_interval[j] = time_interval_to_dc
+                thresholds_last_dc_time_interval[
+                    j
+                ] = time_interval_to_dc
 
             else:
                 if not isinstance(thresholds_last_dc[j], pd.Series):
@@ -143,17 +156,23 @@ def run_strategy_1(thresholds, weights, prices):
                 if thresholds_last_dc_time_interval[j] == (
                     i - thresholds_last_dc[j].name
                 ):
-                    if thresholds_last_dc[j]["event"] == "DR" and last_position != "b":
+                    if (
+                        thresholds_last_dc[j]["event"] == "DR"
+                        and last_position != "b"
+                    ):
                         thresholds_last_decision[j] = "b"
                     elif (
-                        thresholds_last_dc[j]["event"] == "UR" and last_position != "s"
+                        thresholds_last_dc[j]["event"] == "UR"
+                        and last_position != "s"
                     ):
                         thresholds_last_decision[j] = "s"
                 else:
                     thresholds_last_decision[j] = "h"
-
         new_position = calculate_decision(
-            thresholds, thresholds_last_decision, weights, last_position
+            thresholds,
+            thresholds_last_decision,
+            weights,
+            last_position,
         )
 
         if new_position != "h":
@@ -162,11 +181,21 @@ def run_strategy_1(thresholds, weights, prices):
                 if isinstance(td, pd.Series) and td["event"] == "DR":
                     dr_count += 1
             ur_count = 12 - dr_count
-            if new_position == "b" and last_position != "b" and dr_count > ur_count:
+            if (
+                new_position == "b"
+                and last_position != "b"
+                and dr_count > ur_count
+            ):
                 last_buy_price = prices[i] * 1.0025
                 last_position = new_position
-            elif new_position == "s" and last_position != "s" and dr_count < ur_count:
-                return_prices.loc[i, "returns"] = last_buy_price - prices[i]
+            elif (
+                new_position == "s"
+                and last_position != "s"
+                and dr_count < ur_count
+            ):
+                return_prices.loc[i, "returns"] = (
+                    last_buy_price - prices[i]
+                )
                 # return_prices["returns"][i] = last_buy_price - prices[i]
                 last_position = new_position
 
