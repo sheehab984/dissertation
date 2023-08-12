@@ -103,8 +103,19 @@ def evaluate_population(pool, population):
 def main():
     for idx, stock in enumerate(df.columns[1:]):
         prices = df[stock]
+        # Split the data into an initial 80% train and 20% test
+        num_rows = len(df)
+        train_idx = int(0.8 * num_rows)
+        train_df_initial = prices[:train_idx]
+        test_df = prices[train_idx:]
+
+        # Split the initial train_df into 80% train and 20% validation
+        val_idx = int(0.8 * len(train_df_initial))
+        train_df = train_df_initial[:val_idx]
+        val_df = train_df_initial[val_idx:]
+
         threshold_dc_summaries = compute_threshold_dc_summaries(
-            prices, THETA_THRESHOLDS
+            train_df, THETA_THRESHOLDS
         )
         THRESHOLDS_DC_SUMMARIES_CACHE[stock] = threshold_dc_summaries
 
@@ -124,7 +135,7 @@ def main():
         crossover_probability=0.95,
         mutation_type="random",
         mutation_probability=0.05,
-        parallel_processing=["process", 4],
+    #    parallel_processing=["process", 4],
     )
     ga_instance.run()
 
