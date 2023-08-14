@@ -2,7 +2,7 @@ import pygad
 import numpy as np
 import pandas as pd
 import datetime
-from strategy1 import compute_threshold_dc_summaries, run_strategy_1
+from strategy1_v1 import compute_threshold_dc_summaries, run_strategy_1
 
 
 def calculate_metrics(returns, risk_free_rate=0.01):
@@ -96,10 +96,6 @@ def fitness_func(ga_instance, solution, solution_idx):
     return compute_sharpe_ratio(solution)
 
 
-def evaluate_population(pool, population):
-    return pool.map(fitness_func, population)
-
-
 def main():
     for idx, stock in enumerate(df.columns[1:]):
         prices = df[stock]
@@ -135,7 +131,7 @@ def main():
         crossover_probability=0.95,
         mutation_type="random",
         mutation_probability=0.05,
-    #    parallel_processing=["process", 4],
+        #    parallel_processing=["process", 4],
     )
     ga_instance.run()
 
