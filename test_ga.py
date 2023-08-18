@@ -2,7 +2,7 @@ import pygad
 import numpy as np
 import pandas as pd
 import datetime
-from strategy1_v1 import compute_threshold_dc_summaries, run_strategy_1
+from old_ref.strategy1_v1 import compute_threshold_dc_summaries, run_strategy_1
 
 
 def calculate_metrics(returns, risk_free_rate=0.01):
