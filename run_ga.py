@@ -21,7 +21,7 @@ def initialize_population(num_genes, sol_per_pop):
     return population
 
 
-def run_ga(strategy_fitness_function):
+def run_ga(loader_function):
     """
     Run the Genetic Algorithm (GA) using pygad library.
 
@@ -36,20 +36,7 @@ def run_ga(strategy_fitness_function):
     mutation_probability = 0.05
     tournament_size = 2
 
-    # Read the data from CSV
-    df = pd.read_csv("data/stock_data.csv")
-
-    thresholds = (
-        np.array([0.098, 0.22, 0.48, 0.72, 0.98, 1.22, 1.55, 1.70, 2, 2.55])
-        / 100
-    )
-
-    stock_decision_by_thresholds = load_strategy_1(df, thresholds)
-
-    def fitness_func(solution, solution_idx):
-        return strategy_fitness_function(
-            df, solution, stock_decision_by_thresholds
-        )
+    fitness_func = loader_function()
 
     # Create an instance of the GA class
     ga_instance = pygad.GA(
@@ -77,9 +64,47 @@ def run_ga(strategy_fitness_function):
     return solution, solution_fitness, solution_idx
 
 
+def loader_function_strategy_1() -> callable:
+    """
+    Load strategy 1 data and return a fitness function for evaluating solutions.
+
+    Returns:
+    - callable: A fitness function that evaluates the fitness of a solution based on strategy 1.
+    """
+
+    # Read the data from CSV
+    df = pd.read_csv("data/stock_data.csv")
+
+    # Define thresholds
+    thresholds = (
+        np.array([0.098, 0.22, 0.48, 0.72, 0.98, 1.22, 1.55, 1.70, 2, 2.55])
+        / 100
+    )
+
+    # Load strategy 1 decisions
+    stock_decision_by_thresholds = load_strategy_1(df, thresholds)
+
+    def fitness_func(solution: list, solution_idx: int) -> float:
+        """
+        Fitness function for evaluating a given solution.
+
+        Parameters:
+        - solution (list): The solution to evaluate.
+        - solution_idx (int): Index of the solution.
+
+        Returns:
+        - float: Fitness value of the solution.
+        """
+        return strategy1_fitness_function(
+            df, solution, stock_decision_by_thresholds
+        )
+
+    return fitness_func
+
+
 if __name__ == "__main__":
     solution, solution_fitness, solution_idx = run_ga(
-        strategy1_fitness_function
+        loader_function_strategy_1
     )
     print("Best solution is:", solution)
     print("Fitness of the best solution is:", solution_fitness)
