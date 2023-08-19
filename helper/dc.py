@@ -93,35 +93,58 @@ def calculate_dc(
 
 def calculate_dc_indicators(
     prices: List[float],
-    upturn: List[Tuple[int, float]],
-    downturn: List[Tuple[int, float]],
-    p_ext: List[Tuple[float, int, str]],
-    threshold: float,
+    thresholds: List[float],
     chunk_size: int = 4,
-) -> List[Tuple[int, float, float, str, float]]:
+) -> List[pd.DataFrame]:
     """
     Calculate DC indicators based on given parameters.
 
     Args:
     - prices: List of price values.
-    - upturn: List of upturn events.
-    - downturn: List of downturn events.
-    - p_ext: List of price extension events.
-    - threshold: Threshold value for calculation.
+    - thresholds: List of Threshold value for calculation.
     - chunk_size: Size of chunks for splitting overshoot data.
 
     Returns:
-    - List of tuples containing overshoot data with best OSV.
+    - List of ThresholdSummary objects containing DC data, p_ext, all_overshoot, all_overshoot_with_osv_best data.
     """
-    all_overshoot = compute_all_overshoot(
-        prices, upturn, downturn, p_ext, threshold
-    )
-    chunks = split_into_chunks(all_overshoot, chunk_size)
-    medians = [np.median([x[2] for x in chunk]) for chunk in chunks]
-    all_overshoot_with_osv_best = [
-        (x + (medians[i],)) for i, chunk in enumerate(chunks) for x in chunk
-    ]
-    return all_overshoot_with_osv_best
+
+    # upturn: List[Tuple[int, float]],
+    # downturn: List[Tuple[int, float]],
+    # p_ext: List[Tuple[float, int, str]],
+    # threshold: float,
+
+    summaries = []
+    for threshold in thresholds:
+        upturn, downturn, p_ext = calculate_dc(prices, threshold)
+        upturn = [DCEvent(x[0], x[1], "UR") for x in upturn]
+        downturn = [DCEvent(x[0], x[1], "DR") for x in downturn]
+        p_ext = [DCEvent(x[1], x[0], x[2]) for x in p_ext]
+        all_overshoot = compute_all_overshoot(
+            prices, upturn, downturn, p_ext, threshold
+        )
+        chunks = split_into_chunks(all_overshoot, chunk_size)
+        medians = [np.median([x[2] for x in chunk]) for chunk in chunks]
+        all_overshoot_with_osv_best = [
+            (x + (medians[i],)) for i, chunk in enumerate(chunks) for x in chunk
+        ]
+        indexes = [x[0] for x in all_overshoot_with_osv_best]
+        osv_prices = [x[1] for x in all_overshoot_with_osv_best]
+        osv_cur = [x[2] for x in all_overshoot_with_osv_best]
+        event = [x[3] for x in all_overshoot_with_osv_best]
+        osv_best = [x[4] for x in all_overshoot_with_osv_best]
+
+        summaries.append(
+            pd.DataFrame(
+                data={
+                    "price": osv_prices,
+                    "osv_cur": osv_cur,
+                    "osv_best": osv_best,
+                    "event": event,
+                },
+                index=indexes,
+            )
+        )
+    return summaries
 
 
 def compute_all_overshoot(
@@ -145,19 +168,30 @@ def compute_all_overshoot(
     - List of tuples containing overshoot data.
     """
     all_overshoot = []
-    up_cursor, down_cursor = 0, 0
-    for i, (price, index, event) in enumerate(p_ext):
-        p_dcc = price * (1 + threshold)  # From Pdcc = Pext . (1 + THETA)
-        stop = (
-            upturn[up_cursor][0] if event == "UR" else downturn[down_cursor][0]
-        )
-        if event == "UR":
-            up_cursor += 1
-        else:
-            down_cursor += 1
-        for j in range(index, stop):
-            osv_cur = (prices[j] / p_dcc) / (threshold * p_dcc)
-            all_overshoot.append((j, prices[j], osv_cur, event))
+    dc_data, p_ext_data = merge_dc_events(upturn, downturn, p_ext)
+
+    dc_indexes = dc_data.index
+    i = 0
+    while i < len(dc_indexes):
+        index = dc_indexes[i]
+
+        end = p_ext_data[p_ext_data.index > index].first_valid_index()
+        if (end is not None) and (
+            dc_data[(dc_data.index > index) & (dc_data.index < end)].empty
+            and index + 1 < end
+        ):
+            last_pxt = p_ext_data[p_ext_data.index < index].last_valid_index()
+            p_dcc = p_ext_data.loc[last_pxt]["price"] * (
+                1 + threshold
+            )  # From Pdcc = Pext . (1 + THETA)
+
+            for j in range(index, end):
+                osv_cur = (prices[j] / p_dcc) / (threshold * p_dcc)
+                all_overshoot.append(
+                    (j, prices[j], osv_cur, dc_data.loc[index]["event"])
+                )
+        i += 1
+
     return all_overshoot
 
 

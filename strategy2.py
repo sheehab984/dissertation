@@ -4,27 +4,25 @@ This script runs the strategy1 based on thresholds, weights, and prices.
 import datetime
 import os
 import pickle
-from typing import List, Tuple, Dict, Union
-from collections import namedtuple
+import math
 import numpy as np
 import pandas as pd
-from helper.dc import compute_threshold_dc_summaries
+from typing import List, Tuple, Dict, Union
+from helper.dc import calculate_dc_indicators
 
-DCEvent = namedtuple("DCEvent", ["index", "price", "event"])
-ThresholdSummary = namedtuple("ThresholdSummary", ["dc", "p_ext"])
 
 BUY_COST_MULTIPLIER = 1.0025
 SELL_COST_MULTIPLIER = 0.9975
 
 
 def get_thresholds_decision(
-    threshold_dc_summary: ThresholdSummary, prices: List[float]
+    threshold_overshoot_summary: pd.DataFrame, prices: List[float]
 ) -> List[str]:
     """
     Get decisions based on threshold summaries and prices.
 
     Parameters:
-    - threshold_dc_summary (ThresholdSummary): Summary of the threshold.
+    - threshold_dc_summary (ThresholdSummary2): Summary of the threshold.
     - prices (List[float]): List of prices.
 
     Returns:
@@ -32,33 +30,18 @@ def get_thresholds_decision(
     """
     decisions = ["h"] * len(prices)
 
-    dc = threshold_dc_summary.dc
-    p_ext = threshold_dc_summary.p_ext
-
     i = 0
     while i < len(prices):
-        if i in dc.index:
-            if dc.loc[i]["event"] == "DR":
-                last_price_ext = p_ext[p_ext.index < i].last_valid_index()
-                time_interval_to_dc = i - last_price_ext
-                j = i + (time_interval_to_dc * 2)
-                while i < j and j < len(prices):
-                    decisions[i] = "h"
-                    i += 1
+        if i in threshold_overshoot_summary.index:
+            if threshold_overshoot_summary.loc[i]["event"] == "DR" and abs(
+                threshold_overshoot_summary.loc[i]["osv_cur"]
+            ) >= abs(threshold_overshoot_summary.loc[i]["osv_best"]):
                 decisions[i] = "b"
-                i += 1
-            else:
-                last_price_ext = p_ext[p_ext.index < i].last_valid_index()
-                time_interval_to_dc = i - last_price_ext
-                j = i + (time_interval_to_dc * 2)
-                while i < j and j < len(prices):
-                    decisions[i] = "h"
-                    i += 1
+            elif threshold_overshoot_summary.loc[i]["event"] == "UR" and abs(
+                threshold_overshoot_summary.loc[i]["osv_cur"]
+            ) >= abs(threshold_overshoot_summary.loc[i]["osv_best"]):
                 decisions[i] = "s"
-            i += 1
-        else:
-            decisions[i] = "h"
-            i += 1
+        i += 1
 
     return decisions
 
@@ -112,7 +95,8 @@ def set_decisions(
 
     for col in df.columns[1:]:
         stock_decision_by_thresholds[col] = pd.DataFrame({"prices": df[col]})
-        threshold_dc_summaries = compute_threshold_dc_summaries(
+
+        threshold_dc_summaries = calculate_dc_indicators(
             df[col], theta_thresholds
         )
 
@@ -187,7 +171,7 @@ def calculate_metrics(
     return RoR, volatility, sharpe_ratio
 
 
-def load_strategy_1(
+def load_strategy_2(
     df: pd.DataFrame, thresholds: list, export_excel: bool = False
 ) -> dict:
     """
@@ -204,7 +188,7 @@ def load_strategy_1(
     - dict: Dictionary containing decisions by thresholds.
     """
 
-    filename = "data/strategy1_data.pkl"
+    filename = "data/strategy2_data.pkl"
     stock_decision_by_thresholds = {}
 
     # Check if the file exists
@@ -219,7 +203,7 @@ def load_strategy_1(
             # Create a new Excel writer object
             # pylint: disable=abstract-class-instantiated
             with pd.ExcelWriter(
-                "output/strategy1_output.xlsx", engine="openpyxl"
+                "output/strategy2_output.xlsx", engine="openpyxl"
             ) as writer:
                 for (
                     sheet_name,
@@ -236,7 +220,7 @@ def load_strategy_1(
     return stock_decision_by_thresholds
 
 
-def strategy1_fitness_function(
+def strategy2_fitness_function(
     df: pd.DataFrame, weights: list, stock_data: pd.DataFrame
 ) -> float:
     """
