@@ -4,6 +4,7 @@ import pandas as pd
 
 from strategy1 import load_strategy_1, strategy1_fitness_function
 from strategy2 import load_strategy_2, strategy2_fitness_function
+from strategy3 import load_strategy_3, strategy3_fitness_function
 
 
 def initialize_population(num_genes, sol_per_pop):
@@ -30,7 +31,7 @@ def run_ga(loader_function):
     - tuple: Best solution chromosome, its fitness value, and its index.
     """
     # Parameters
-    num_genes = 10
+    num_genes = 5
     num_solutions = 100
     num_generations = 18
     crossover_probability = 0.95
@@ -145,9 +146,46 @@ def loader_function_strategy_2() -> callable:
     return fitness_func
 
 
+def loader_function_strategy_3() -> callable:
+    """
+    Load strategy 1 data and return a fitness function for evaluating solutions.
+
+    Returns:
+    - callable: A fitness function that evaluates the fitness of a solution based on strategy 1.
+    """
+
+    # Read the data from CSV
+    df = pd.read_csv("data/stock_data.csv")
+
+    # Define thresholds
+    thresholds = np.array([0.098, 0.22, 0.48, 0.72, 0.98]) / 100
+
+    # Load strategy 2 decisions
+    stock_decision_by_thresholds = load_strategy_3(df, thresholds, True)
+
+    def fitness_func(
+        ga_instance: pygad.GA, solution: list, solution_idx: int
+    ) -> float:
+        """
+        Fitness function for evaluating a given solution.
+
+        Parameters:
+        - solution (list): The solution to evaluate.
+        - solution_idx (int): Index of the solution.
+
+        Returns:
+        - float: Fitness value of the solution.
+        """
+        return strategy3_fitness_function(
+            df, solution, stock_decision_by_thresholds
+        )
+
+    return fitness_func
+
+
 if __name__ == "__main__":
     solution, solution_fitness, solution_idx = run_ga(
-        loader_function_strategy_2
+        loader_function_strategy_3
     )
     print("Best solution is:", solution)
     print("Fitness of the best solution is:", solution_fitness)
