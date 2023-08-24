@@ -99,7 +99,7 @@ def run_ga(params, loader_function):
         mutation_type="random",
         keep_parents=1,
         initial_population=initialize_population(num_genes, num_solutions),
-        # parallel_processing=8,
+        parallel_processing=10,
     )
 
     ga_instance.run()
@@ -157,6 +157,8 @@ def loader_function_strategy_1() -> callable:
         Returns:
         - float: Fitness value of the solution.
         """
+        print("Running fitness function for solution " + str(solution_idx))
+        print("Weights are " + str(solution))
 
         # Use the solution to generate trading signals and calculate returns for the training set
         RoR, volatility, sharpe_ratio = strategy1_fitness_function(
@@ -172,6 +174,8 @@ def loader_function_strategy_1() -> callable:
         RoR, volatility, sharpe_ratio = strategy1_fitness_function(
             df, solution, stock_decision_by_thresholds_validation
         )
+
+        print("Validating fitness function for solution " + str(sharpe_ratio))
 
         return sharpe_ratio
 
