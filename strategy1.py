@@ -43,7 +43,6 @@ def get_thresholds_decision(
                 time_interval_to_dc = i - last_price_ext
                 j = i + (time_interval_to_dc * 2)
                 while i < j and j < len(prices):
-                    decisions[i] = "h"
                     i += 1
                 decisions[i] = "b"
                 i += 1
@@ -52,12 +51,10 @@ def get_thresholds_decision(
                 time_interval_to_dc = i - last_price_ext
                 j = i + (time_interval_to_dc * 2)
                 while i < j and j < len(prices):
-                    decisions[i] = "h"
                     i += 1
                 decisions[i] = "s"
             i += 1
         else:
-            decisions[i] = "h"
             i += 1
 
     return decisions
@@ -139,6 +136,10 @@ def get_stock_returns(
     - Dict[str, List[Union[float, None]]]: Stock returns.
     """
     stock_returns = {}
+
+    transection_cost = 0.00025
+    balance = 100
+
     for col in df.columns[1:]:
         stock_df = stock_data[col]
         returns = [None] * stock_df.shape[0]
@@ -156,10 +157,13 @@ def get_stock_returns(
                 buy_price = row["prices"]
             elif new_decision == "s" and last_decision == "b":
                 last_decision = new_decision
-                returns[i] = (
-                    (row["prices"] * SELL_COST_MULTIPLIER)
-                    - (buy_price * BUY_COST_MULTIPLIER)
-                ) / (buy_price * BUY_COST_MULTIPLIER)
+                price_change = ((row["prices"]) - (buy_price)) / (buy_price)
+                cost = transection_cost * balance
+                profit = (price_change * balance) - cost
+                new_balance = balance + profit
+                returns[i] = (new_balance - balance) / balance
+                balance = new_balance
+
         stock_returns[col] = returns
     return stock_returns
 
@@ -188,7 +192,10 @@ def calculate_metrics(
 
 
 def load_strategy_1(
-    df: pd.DataFrame, thresholds: list, export_excel: bool = False
+    df: pd.DataFrame,
+    thresholds: list,
+    filename="data/strategy1_data.pkl",
+    export_excel: bool = False,
 ) -> dict:
     """
     Load strategy 1 data. If the data file exists, it reads from the file.
@@ -204,7 +211,6 @@ def load_strategy_1(
     - dict: Dictionary containing decisions by thresholds.
     """
 
-    filename = "data/strategy1_data.pkl"
     stock_decision_by_thresholds = {}
 
     # Check if the file exists
