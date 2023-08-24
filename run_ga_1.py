@@ -3,10 +3,23 @@ import pygad
 import numpy as np
 import pandas as pd
 import itertools
+import logging
 
 from strategy1 import load_strategy_1, strategy1_fitness_function
 from strategy2 import load_strategy_2, strategy2_fitness_function
 from strategy3 import load_strategy_3, strategy3_fitness_function
+
+
+# Configure logging settings
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    filename="app.log",
+    filemode="w",
+)  # 'w' will overwrite the log file each time the script runs. Use 'a' to append.
+
+# Create a logger object
+logger = logging.getLogger()
 
 
 def split_func(df):
@@ -160,6 +173,11 @@ def loader_function_strategy_1() -> callable:
         print("Running fitness function for solution " + str(solution_idx))
         print("Weights are " + str(solution))
 
+        logger.debug(
+            "Running fitness function for solution " + str(solution_idx)
+        )
+        logger.debug("Weights are " + str(solution))
+
         # Use the solution to generate trading signals and calculate returns for the training set
         RoR, volatility, sharpe_ratio = strategy1_fitness_function(
             df, solution, stock_decision_by_thresholds_train
@@ -176,6 +194,9 @@ def loader_function_strategy_1() -> callable:
         )
 
         print("Validating fitness function for solution " + str(sharpe_ratio))
+        logger.debug(
+            "Validating fitness function for solution " + str(sharpe_ratio)
+        )
 
         return sharpe_ratio
 
@@ -293,7 +314,3 @@ if __name__ == "__main__":
                 + str(solution_fitness)
                 + "\n"
             )
-
-    # Restore the original stdout
-    sys.stdout = original_stdout
-    log_file.close()
