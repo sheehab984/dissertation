@@ -13,8 +13,7 @@ from helper.dc import compute_threshold_dc_summaries
 DCEvent = namedtuple("DCEvent", ["index", "price", "event"])
 ThresholdSummary = namedtuple("ThresholdSummary", ["dc", "p_ext"])
 
-BUY_COST_MULTIPLIER = 1.0025
-SELL_COST_MULTIPLIER = 0.9975
+BUY_COST_MULTIPLIER = 1.00025
 
 
 def get_thresholds_decision(
@@ -133,8 +132,6 @@ def get_stock_returns(
     """
     stock_returns = {}
 
-    transaction_cost = 0.00025
-
     for col in df.columns[1:]:
         stock_df = stock_data[col]
         returns = [None] * stock_df.shape[0]
@@ -153,13 +150,13 @@ def get_stock_returns(
             elif new_decision == "s" and last_decision == "b":
                 last_decision = new_decision
                 returns[i] = (
-                    row["prices"] - (buy_price * (1 + transaction_cost))
+                    row["prices"] - (buy_price * BUY_COST_MULTIPLIER)
                 ) / (buy_price)
                 buy_price = 0
 
         if buy_price != 0:
             returns[-1] = (
-                row["prices"] - (buy_price * (1 + transaction_cost))
+                row["prices"] - (buy_price * BUY_COST_MULTIPLIER)
             ) / (buy_price)
 
         stock_returns[col] = returns

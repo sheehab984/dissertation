@@ -50,7 +50,7 @@ def normalize_population(population):
     Returns:
     - numpy.ndarray: Normalized population of chromosomes.
     """
-    return population / population.sum(axis=1, keepdims=True)
+    return np.abs(population) / np.abs(population).sum(axis=1, keepdims=True)
 
 
 def on_crossover(ga_instance, offspring_crossover):
@@ -112,7 +112,7 @@ def run_ga(params, loader_function):
         mutation_type="random",
         keep_parents=1,
         initial_population=initialize_population(num_genes, num_solutions),
-        parallel_processing=20,
+        parallel_processing=40,
     )
 
     ga_instance.run()
@@ -297,6 +297,10 @@ if __name__ == "__main__":
         "crossover_probability": [0.95],
     }
     for i in range(50):
+        with open("output/strategy1_run.txt", "a") as f:
+            f.write(
+                f"Starting running GA for strategy 1 with parameters. Run {i + 1}"
+            )
         all_params = [
             dict(zip(param_grid.keys(), values))
             for values in itertools.product(*param_grid.values())

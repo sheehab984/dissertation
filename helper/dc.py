@@ -171,24 +171,20 @@ def compute_all_overshoot(
     dc_data, p_ext_data = merge_dc_events(upturn, downturn, p_ext)
 
     dc_indexes = dc_data.index
+    p_ext_indexes = p_ext_data.index
     i = 0
-    while i < len(dc_indexes):
-        index = dc_indexes[i]
-
-        end = p_ext_data[p_ext_data.index > index].first_valid_index()
-        if (end is not None) and (
-            dc_data[(dc_data.index > index) & (dc_data.index < end)].empty
-            and index + 1 < end
-        ):
-            last_pxt = p_ext_data[p_ext_data.index < index].last_valid_index()
-            p_dcc = p_ext_data.loc[last_pxt]["price"] * (
-                1 + threshold
-            )  # From Pdcc = Pext . (1 + THETA)
-
-            for j in range(index, end):
-                osv_cur = (prices[j] / p_dcc) / (threshold * p_dcc)
+    while i < len(dc_indexes) - 1:
+        if p_ext_indexes[i + 1] - dc_indexes[i] > 0:
+            p_dcc = p_ext_data.iloc[i]["price"] * (1 + threshold)
+            for j in range(dc_indexes[i], p_ext_indexes[i + 1]):
+                osv_cur = (prices[j + 1] / p_dcc) / (threshold * p_dcc)
                 all_overshoot.append(
-                    (j, prices[j], osv_cur, dc_data.loc[index]["event"])
+                    (
+                        j + 1,
+                        prices[j + 1],
+                        osv_cur,
+                        dc_data.iloc[i]["event"],
+                    )
                 )
         i += 1
 
