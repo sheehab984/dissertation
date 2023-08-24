@@ -299,7 +299,7 @@ if __name__ == "__main__":
     for i in range(50):
         with open("output/strategy1_run.txt", "a") as f:
             f.write(
-                f"Starting running GA for strategy 1 with parameters. Run {i + 1}"
+                f"Starting running GA for strategy 1 with parameters. Run {i + 1}\n"
             )
         all_params = [
             dict(zip(param_grid.keys(), values))
