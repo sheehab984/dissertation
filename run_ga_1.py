@@ -99,7 +99,7 @@ def run_ga(params, loader_function):
         mutation_type="random",
         keep_parents=1,
         initial_population=initialize_population(num_genes, num_solutions),
-        parallel_processing=10,
+        parallel_processing=20,
     )
 
     ga_instance.run()
@@ -137,7 +137,7 @@ def loader_function_strategy_1() -> callable:
 
     # Load strategy 1 decisions
     stock_decision_by_thresholds_validation = load_strategy_1(
-        df=train_df,
+        df=valid_df,
         thresholds=thresholds,
         pkl_filename="data/strategy1_valid_data.pkl",
         excel_filename="output/strategy1_valid.xlsx",
@@ -260,6 +260,15 @@ def loader_function_strategy_3() -> callable:
 
 
 if __name__ == "__main__":
+    # Backup the original stdout
+    original_stdout = sys.stdout
+
+    # Open a file in write mode
+    log_file = open("logfile.txt", "w")
+
+    # Redirect stdout to the file
+    sys.stdout = log_file
+
     param_grid = {
         "num_genes": [10],
         "num_solutions": [100],
@@ -284,3 +293,7 @@ if __name__ == "__main__":
                 + str(solution_fitness)
                 + "\n"
             )
+
+    # Restore the original stdout
+    sys.stdout = original_stdout
+    log_file.close()
