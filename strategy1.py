@@ -36,26 +36,22 @@ def get_thresholds_decision(
     p_ext = threshold_dc_summary.p_ext
 
     i = 0
-    while i < len(prices):
-        if i in dc.index:
-            if dc.loc[i]["event"] == "DR":
-                last_price_ext = p_ext[p_ext.index < i].last_valid_index()
-                time_interval_to_dc = i - last_price_ext
-                j = i + (time_interval_to_dc * 2)
-                while i < j and j < len(prices):
-                    i += 1
-                decisions[i] = "b"
-                i += 1
-            else:
-                last_price_ext = p_ext[p_ext.index < i].last_valid_index()
-                time_interval_to_dc = i - last_price_ext
-                j = i + (time_interval_to_dc * 2)
-                while i < j and j < len(prices):
-                    i += 1
-                decisions[i] = "s"
-            i += 1
-        else:
-            i += 1
+    while i < dc.shape[0] - 1:
+        if (
+            dc.iloc[i]["event"] == "DR"
+            and p_ext.iloc[i + 1].name - dc.iloc[i].name > 0
+        ):
+            j = dc.iloc[i].name * 2
+            if j < len(prices):
+                decisions[j] = "b"
+        elif (
+            dc.iloc[i]["event"] == "UR"
+            and p_ext.iloc[i + 1].name - dc.iloc[i].name > 0
+        ):
+            j = dc.iloc[i].name * 2
+            if j < len(prices):
+                decisions[j] = "s"
+        i += 1
 
     return decisions
 
@@ -137,8 +133,7 @@ def get_stock_returns(
     """
     stock_returns = {}
 
-    transection_cost = 0.00025
-    balance = 100
+    transaction_cost = 0.00025
 
     for col in df.columns[1:]:
         stock_df = stock_data[col]
@@ -157,12 +152,15 @@ def get_stock_returns(
                 buy_price = row["prices"]
             elif new_decision == "s" and last_decision == "b":
                 last_decision = new_decision
-                price_change = ((row["prices"]) - (buy_price)) / (buy_price)
-                cost = transection_cost * balance
-                profit = (price_change * balance) - cost
-                new_balance = balance + profit
-                returns[i] = (new_balance - balance) / balance
-                balance = new_balance
+                returns[i] = (
+                    row["prices"] - (buy_price * (1 + transaction_cost))
+                ) / (buy_price)
+                buy_price = 0
+
+        if buy_price != 0:
+            returns[-1] = (
+                row["prices"] - (buy_price * (1 + transaction_cost))
+            ) / (buy_price)
 
         stock_returns[col] = returns
     return stock_returns
@@ -183,7 +181,7 @@ def calculate_metrics(
     """
     returns = np.array(returns)
     returns_only = returns[returns != np.array(None)]
-    RoR = returns_only.mean()
+    RoR = sum(returns_only)
 
     volatility = np.std(returns_only)
     sharpe_ratio = (RoR - risk_free_rate) / volatility
@@ -194,7 +192,8 @@ def calculate_metrics(
 def load_strategy_1(
     df: pd.DataFrame,
     thresholds: list,
-    filename="data/strategy1_data.pkl",
+    pkl_filename="data/strategy1_data.pkl",
+    excel_filename="output/strategy1_output.xlsx",
     export_excel: bool = False,
 ) -> dict:
     """
@@ -212,11 +211,10 @@ def load_strategy_1(
     """
 
     stock_decision_by_thresholds = {}
-
     # Check if the file exists
-    if os.path.exists(filename):
+    if os.path.exists(pkl_filename):
         # If the file exists, load it
-        with open(filename, "rb") as file:
+        with open(pkl_filename, "rb") as file:
             stock_decision_by_thresholds = pickle.load(file)
     else:
         stock_decision_by_thresholds = set_decisions(df, thresholds)
@@ -224,9 +222,7 @@ def load_strategy_1(
         if export_excel:
             # Create a new Excel writer object
             # pylint: disable=abstract-class-instantiated
-            with pd.ExcelWriter(
-                "output/strategy1_output.xlsx", engine="openpyxl"
-            ) as writer:
+            with pd.ExcelWriter(excel_filename, engine="openpyxl") as writer:
                 for (
                     sheet_name,
                     stock_data,
@@ -236,7 +232,7 @@ def load_strategy_1(
                     )
 
         # If the file doesn't exist, save the dictionary to the file
-        with open(filename, "wb") as file:
+        with open(pkl_filename, "wb") as file:
             pickle.dump(stock_decision_by_thresholds, file)
 
     return stock_decision_by_thresholds
@@ -257,22 +253,19 @@ def strategy1_fitness_function(
     - float: Mean of the Sharpe Ratios, representing the fitness of the strategy.
     """
 
-    returns = [0] * (len(df.columns) - 1)
-
-    # Get the current date and time
-    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(
-        f"{current_time}: This will be appended to the file with a timestamp."
-    )
-    print("-------------------------------------------------------")
-    print(f"New Weights are: {weights}")
+    sharpe_ratios = [0] * (len(df.columns) - 1)
+    RoRs = [0] * (len(df.columns) - 1)
+    volatility_list = [0] * (len(df.columns) - 1)
 
     stock_returns = get_stock_returns(df, weights, stock_data)
 
     for idx, col in enumerate(df.columns[1:]):
-        _, _, sharpe_ratio = calculate_metrics(stock_returns[col], 0.025)
-        print(f"Sharpe Ratio for {col} is: {sharpe_ratio}")
-        returns[idx] = sharpe_ratio
+        RoR, volatility, sharpe_ratio = calculate_metrics(
+            stock_returns[col], 0.025
+        )
 
-    print(f"Fitness is: {np.mean(returns)}")
-    return np.mean(returns)
+        sharpe_ratios[idx] = sharpe_ratio
+        RoRs[idx] = RoR
+        volatility_list[idx] = volatility
+
+    return np.mean(RoRs), np.mean(volatility_list), np.mean(sharpe_ratios)

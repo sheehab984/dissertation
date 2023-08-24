@@ -8,15 +8,6 @@ from strategy1 import load_strategy_1, strategy1_fitness_function
 from strategy2 import load_strategy_2, strategy2_fitness_function
 from strategy3 import load_strategy_3, strategy3_fitness_function
 
-# Backup the original stdout
-original_stdout = sys.stdout
-
-# Open a file in write mode
-log_file = open("logfile.txt", "w")
-
-# Redirect stdout to the file
-sys.stdout = log_file
-
 
 def split_func(df):
     # Define the split ratios
@@ -139,7 +130,8 @@ def loader_function_strategy_1() -> callable:
     stock_decision_by_thresholds_train = load_strategy_1(
         df=train_df,
         thresholds=thresholds,
-        filename="data/strategy1_train_data.pkl",
+        pkl_filename="data/strategy1_train_data.pkl",
+        excel_filename="output/strategy1_train.xlsx",
         export_excel=True,
     )
 
@@ -147,7 +139,8 @@ def loader_function_strategy_1() -> callable:
     stock_decision_by_thresholds_validation = load_strategy_1(
         df=train_df,
         thresholds=thresholds,
-        filename="data/strategy1_valid_data.pkl",
+        pkl_filename="data/strategy1_valid_data.pkl",
+        excel_filename="output/strategy1_valid.xlsx",
         export_excel=True,
     )
 
@@ -166,21 +159,21 @@ def loader_function_strategy_1() -> callable:
         """
 
         # Use the solution to generate trading signals and calculate returns for the training set
-        train_fitness = strategy1_fitness_function(
+        RoR, volatility, sharpe_ratio = strategy1_fitness_function(
             df, solution, stock_decision_by_thresholds_train
         )
 
         # Optimize the strategy on the training set (this step can vary based on the problem)
         # For simplicity, we'll assume the strategy is optimized if it has a positive Sharpe Ratio on the training set
-        if train_fitness <= 0:
+        if sharpe_ratio <= 0:
             return -np.inf  # This will make the GA avoid such solutions
 
         # Now, evaluate the strategy on the validation set
-        validation_fitness = strategy1_fitness_function(
+        RoR, volatility, sharpe_ratio = strategy1_fitness_function(
             df, solution, stock_decision_by_thresholds_validation
         )
 
-        return validation_fitness
+        return sharpe_ratio
 
     return fitness_func
 
@@ -269,21 +262,21 @@ if __name__ == "__main__":
         "num_generations": [18],
         "crossover_probability": [0.95],
     }
+    for i in range(50):
+        all_params = [
+            dict(zip(param_grid.keys(), values))
+            for values in itertools.product(*param_grid.values())
+        ]
 
-    # Generate all combinations of hyperparameters
-    all_params = [
-        dict(zip(param_grid.keys(), values))
-        for values in itertools.product(*param_grid.values())
-    ]
-
-    solution, solution_fitness, _ = run_ga(
-        all_params[0], loader_function_strategy_1
-    )
-
-    print("Best Score:", solution_fitness)
-    print("Weights", solution)
-
-
-# Restore the original stdout
-sys.stdout = original_stdout
-log_file.close()
+        solution, solution_fitness, _ = run_ga(
+            all_params[0], loader_function_strategy_1
+        )
+        with open("output/strategy1_run.txt", "a") as f:
+            f.write(
+                str(i)
+                + "\t"
+                + str(solution)
+                + "\t"
+                + str(solution_fitness)
+                + "\n"
+            )

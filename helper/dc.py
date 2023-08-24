@@ -252,7 +252,7 @@ def merge_dc_events(
     - Tuple of DataFrames containing merged DC data and p_ext data.
     """
     dc_indexes, dc_prices, dc_event = [], [], []
-    if len(upturn) > len(downturn):
+    if upturn[0].index < downturn[0].index:
         events = list(zip(upturn, downturn))
     else:
         events = list(zip(downturn, upturn))
