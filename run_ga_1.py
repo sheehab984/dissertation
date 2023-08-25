@@ -129,7 +129,7 @@ def run_ga(params, loader_function):
         initial_population=initialize_population(num_genes, num_solutions),
         logger=logger,
         on_generation=on_generation,
-        parallel_processing=["process", 40],
+        parallel_processing=["process", 50],
     )
 
     ga_instance.run()
