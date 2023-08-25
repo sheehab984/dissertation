@@ -1,18 +1,18 @@
+import datetime
 import pygad
 import numpy as np
 import pandas as pd
 import itertools
 import logging
-import datetime
 
-from strategy1 import load_strategy_1, strategy1_fitness_function
+from strategy3 import load_strategy_3, strategy3_fitness_function
 
 
 # Configure logging settings
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    filename="app_train.log",
+    filename="app3.log",
     filemode="w",
 )  # 'w' will overwrite the log file each time the script runs. Use 'a' to append.
 
@@ -74,7 +74,7 @@ def initialize_population(num_genes, sol_per_pop):
 def on_generation(ga_instance):
     current_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    with open("output/strategy1_train_run.txt", "a") as f:
+    with open("output/strategy3_train_run.txt", "a") as f:
         f.write(f"Generation completed at {current_timestamp}.\n")
 
     ga_instance.logger.info(
@@ -129,7 +129,7 @@ def run_ga(params, loader_function):
         initial_population=initialize_population(num_genes, num_solutions),
         logger=logger,
         on_generation=on_generation,
-        parallel_processing=["process", 40],
+        parallel_processing=["process", 50],
     )
 
     ga_instance.run()
@@ -137,30 +137,29 @@ def run_ga(params, loader_function):
     return ga_instance.best_solution()
 
 
-def loader_function_strategy_1() -> callable:
+def loader_function_strategy_3() -> callable:
     """
-    Load strategy 1 data and return a fitness function for evaluating solutions.
+    Load strategy 3 data and return a fitness function for evaluating solutions.
 
     Returns:
     - callable: A fitness function that evaluates the fitness of a solution based on strategy 1.
     """
 
     # Read the data from CSV
+    # Read the data from CSV
     df = pd.read_csv("data/stock_data.csv")
 
     train_df, test_df = split_func(df)
 
     # Define thresholds
-    thresholds = (
-        np.array([0.098, 0.22, 0.48, 0.72, 0.98, 1.22, 1.55, 1.70, 2, 2.55])
-        / 100
-    )
-    # Load strategy 1 decisions
-    stock_decision_by_thresholds_train = load_strategy_1(
+    thresholds = np.array([0.098, 0.22, 0.48, 0.72, 0.98]) / 100
+
+    # Load strategy 2 decisions
+    stock_decision_by_thresholds_train = load_strategy_3(
         df=train_df,
         thresholds=thresholds,
-        pkl_filename="data/strategy1_train_data.pkl",
-        excel_filename="output/strategy1_train.xlsx",
+        pkl_filename="data/strategy3_train_data.pkl",
+        excel_filename="output/strategy3_train.xlsx",
         export_excel=True,
     )
 
@@ -181,7 +180,7 @@ def loader_function_strategy_1() -> callable:
         print("Weights are " + str(solution))
 
         # Use the solution to generate trading signals and calculate returns for the training set
-        RoR, volatility, sharpe_ratio = strategy1_fitness_function(
+        RoR, volatility, sharpe_ratio = strategy3_fitness_function(
             df, solution, stock_decision_by_thresholds_train
         )
 
@@ -201,7 +200,7 @@ def loader_function_strategy_1() -> callable:
 
 if __name__ == "__main__":
     param_grid = {
-        "num_genes": [10],
+        "num_genes": [5],
         "num_solutions": [100],
         "num_generations": [18],
         "crossover_probability": [0.95],
@@ -212,12 +211,12 @@ if __name__ == "__main__":
             "%Y-%m-%d %H:%M:%S"
         )
 
-        with open("output/strategy1_train_run.txt", "a") as f:
+        with open("output/strategy3_train_run.txt", "a") as f:
             f.write(
                 f"--------Starting a new GA instance at {current_timestamp}.------------\n"
             )
             f.write(
-                f"Starting running GA for strategy 1 with parameters. Run {i + 1}\n"
+                f"Starting running GA for strategy 3 with parameters. Run {i + 1}\n"
             )
         all_params = [
             dict(zip(param_grid.keys(), values))
@@ -225,9 +224,9 @@ if __name__ == "__main__":
         ]
 
         solution, solution_fitness, _ = run_ga(
-            all_params[0], loader_function_strategy_1
+            all_params[0], loader_function_strategy_3
         )
-        with open("output/strategy1_train_run.txt", "a") as f:
+        with open("output/strategy3_train_run.txt", "a") as f:
             f.write(
                 str(i)
                 + "\t"
@@ -237,5 +236,5 @@ if __name__ == "__main__":
                 + "\n"
             )
             f.write(
-                f"----------Finished running GA for strategy 1. Run {i + 1}-------------\n"
+                f"----------Finished running GA for strategy 3. Run {i + 1}-------------\n"
             )

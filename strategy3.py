@@ -14,9 +14,7 @@ from helper.dc import (
     ThresholdSummary,
 )
 
-
-BUY_COST_MULTIPLIER = 1.0025
-SELL_COST_MULTIPLIER = 0.9975
+BUY_COST_MULTIPLIER = 1.00025
 
 
 def get_thresholds_decision(
@@ -36,28 +34,29 @@ def get_thresholds_decision(
     """
     decisions = ["h"] * len(prices)
     dc = threshold_dc_summary.dc
+    p_ext = threshold_dc_summary.p_ext
     i = 0
     buy_counter = 0
     bought_index = -1
 
-    while i < len(prices):
-        if bought_index != -1:
-            dc_index = dc[
-                (dc.index > bought_index) & (dc.event == "DR")
-            ].first_valid_index()
-            if dc_index is not None:
-                decisions[dc_index] = "s"
-                bought_index = -1
-                while i != dc_index:
-                    i += 1
-        if i in threshold_overshoot_summary.index:
-            if threshold_overshoot_summary.loc[i]["event"] == "UR":
-                buy_counter += 1
-                if buy_counter == 3:
-                    decisions[i] = "b"
-                    bought_index = i
-            elif threshold_overshoot_summary.loc[i]["event"] == "DR":
-                buy_counter = 0
+    while i < dc.shape[0] - 1:
+        if dc.iloc[i]["event"] == "DR" and bought_index != -1:
+            decisions[dc.iloc[i].name] = "s"
+            buy_counter -= 1
+            bought_index = -1
+        elif (
+            dc.iloc[i]["event"] == "UR"
+            and p_ext.iloc[i + 1].name - dc.iloc[i].name > 0
+        ):
+            buy_counter += 1
+            if buy_counter == 3:
+                decisions[dc.iloc[i].name] = "b"
+                bought_index = dc.iloc[i].name + 1
+        elif (
+            dc.iloc[i]["event"] == "DR"
+            and p_ext.iloc[i + 1].name - dc.iloc[i].name > 0
+        ):
+            buy_counter = 0
         i += 1
 
     return decisions
@@ -164,9 +163,14 @@ def get_stock_returns(
             elif new_decision == "s" and last_decision == "b":
                 last_decision = new_decision
                 returns[i] = (
-                    (row["prices"] * SELL_COST_MULTIPLIER)
-                    - (buy_price * BUY_COST_MULTIPLIER)
-                ) / (buy_price * BUY_COST_MULTIPLIER)
+                    (row["prices"]) - (buy_price * BUY_COST_MULTIPLIER)
+                ) / (buy_price)
+                buy_price = 0
+        if buy_price != 0:
+            returns[-1] = (
+                row["prices"] - (buy_price * BUY_COST_MULTIPLIER)
+            ) / (buy_price)
+
         stock_returns[col] = returns
     return stock_returns
 
@@ -184,18 +188,25 @@ def calculate_metrics(
     Returns:
     - Tuple[float, float, float]: RoR, Risk, Sharpe Ratio.
     """
-    returns = np.array(returns)
-    returns_only = returns[returns != np.array(None)]
-    RoR = returns_only.mean()
+    try:
+        returns = np.array(returns)
+        returns_only = returns[returns != np.array(None)]
+        RoR = sum(returns_only)
 
-    volatility = np.std(returns_only)
-    sharpe_ratio = (RoR - risk_free_rate) / volatility
+        volatility = np.std(returns_only)
+        sharpe_ratio = (RoR - risk_free_rate) / volatility
 
-    return RoR, volatility, sharpe_ratio
+        return RoR, volatility, sharpe_ratio
+    except Exception:
+        return 0, 0, 0
 
 
 def load_strategy_3(
-    df: pd.DataFrame, thresholds: list, export_excel: bool = False
+    df: pd.DataFrame,
+    thresholds: list,
+    pkl_filename="data/strategy3_data.pkl",
+    excel_filename="output/strategy3_output.xlsx",
+    export_excel: bool = False,
 ) -> dict:
     """
     Load strategy 1 data. If the data file exists, it reads from the file.
@@ -211,13 +222,12 @@ def load_strategy_3(
     - dict: Dictionary containing decisions by thresholds.
     """
 
-    filename = "data/strategy3_data.pkl"
     stock_decision_by_thresholds = {}
 
     # Check if the file exists
-    if os.path.exists(filename):
+    if os.path.exists(pkl_filename):
         # If the file exists, load it
-        with open(filename, "rb") as file:
+        with open(pkl_filename, "rb") as file:
             stock_decision_by_thresholds = pickle.load(file)
     else:
         stock_decision_by_thresholds = set_decisions(df, thresholds)
@@ -225,9 +235,7 @@ def load_strategy_3(
         if export_excel:
             # Create a new Excel writer object
             # pylint: disable=abstract-class-instantiated
-            with pd.ExcelWriter(
-                "output/strategy3_output.xlsx", engine="openpyxl"
-            ) as writer:
+            with pd.ExcelWriter(excel_filename, engine="openpyxl") as writer:
                 for (
                     sheet_name,
                     stock_data,
@@ -237,7 +245,7 @@ def load_strategy_3(
                     )
 
         # If the file doesn't exist, save the dictionary to the file
-        with open(filename, "wb") as file:
+        with open(pkl_filename, "wb") as file:
             pickle.dump(stock_decision_by_thresholds, file)
 
     return stock_decision_by_thresholds
@@ -258,22 +266,19 @@ def strategy3_fitness_function(
     - float: Mean of the Sharpe Ratios, representing the fitness of the strategy.
     """
 
-    returns = [0] * (len(df.columns) - 1)
-
-    # Get the current date and time
-    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(
-        f"{current_time}: This will be appended to the file with a timestamp."
-    )
-    print("-------------------------------------------------------")
-    print(f"New Weights are: {weights}")
+    sharpe_ratios = [0] * (len(df.columns) - 1)
+    RoRs = [0] * (len(df.columns) - 1)
+    volatility_list = [0] * (len(df.columns) - 1)
 
     stock_returns = get_stock_returns(df, weights, stock_data)
 
     for idx, col in enumerate(df.columns[1:]):
-        _, _, sharpe_ratio = calculate_metrics(stock_returns[col], 0.025)
-        print(f"Sharpe Ratio for {col} is: {sharpe_ratio}")
-        returns[idx] = sharpe_ratio
+        RoR, volatility, sharpe_ratio = calculate_metrics(
+            stock_returns[col], 0.025
+        )
 
-    print(f"Fitness is: {np.mean(returns)}")
-    return np.mean(returns)
+        sharpe_ratios[idx] = sharpe_ratio
+        RoRs[idx] = RoR
+        volatility_list[idx] = volatility
+
+    return np.mean(RoRs), np.mean(volatility_list), np.mean(sharpe_ratios)
