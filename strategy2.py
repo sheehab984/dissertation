@@ -168,14 +168,17 @@ def calculate_metrics(
     Returns:
     - Tuple[float, float, float]: RoR, Risk, Sharpe Ratio.
     """
-    returns = np.array(returns)
-    returns_only = returns[returns != np.array(None)]
-    RoR = sum(returns_only)
+    try:
+        returns = np.array(returns)
+        returns_only = returns[returns != np.array(None)]
+        RoR = sum(returns_only)
 
-    volatility = np.std(returns_only)
-    sharpe_ratio = (RoR - risk_free_rate) / volatility
+        volatility = np.std(returns_only)
+        sharpe_ratio = (RoR - risk_free_rate) / volatility
 
-    return RoR, volatility, sharpe_ratio
+        return RoR, volatility, sharpe_ratio
+    except Exception:
+        return 0, 0, 0
 
 
 def load_strategy_2(

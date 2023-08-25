@@ -1,3 +1,4 @@
+import datetime
 import pygad
 import numpy as np
 import pandas as pd
@@ -11,7 +12,7 @@ from strategy2 import load_strategy_2, strategy2_fitness_function
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    filename="app2.log",
+    filename="app2_train.log",
     filemode="w",
 )  # 'w' will overwrite the log file each time the script runs. Use 'a' to append.
 
@@ -22,19 +23,16 @@ logger = logging.getLogger()
 def split_func(df):
     # Define the split ratios
     train_ratio = 0.8
-    valid_ratio_from_train = 0.2
 
     # Calculate the split indices
     total_rows = len(df)
     train_split_idx = int(total_rows * train_ratio)
-    valid_split_idx = int(train_split_idx * (1 - valid_ratio_from_train))
 
     # Split the data
-    train_df = df.iloc[:valid_split_idx].reset_index(drop=True)
-    valid_df = df.iloc[valid_split_idx:train_split_idx].reset_index(drop=True)
+    train_df = df.iloc[:train_split_idx].reset_index(drop=True)
     test_df = df.iloc[train_split_idx:].reset_index(drop=True)
 
-    return train_df, valid_df, test_df
+    return train_df, test_df
 
 
 def normalize_population(population):
@@ -73,6 +71,26 @@ def initialize_population(num_genes, sol_per_pop):
     return normalize_population(population)
 
 
+def on_generation(ga_instance):
+    current_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    with open("output/strategy2_train_run.txt", "a") as f:
+        f.write(f"Generation completed at {current_timestamp}.\n")
+
+    ga_instance.logger.info(
+        "Generation = {generation}".format(
+            generation=ga_instance.generations_completed
+        )
+    )
+    ga_instance.logger.info(
+        "Fitness    = {fitness}".format(
+            fitness=ga_instance.best_solution(
+                pop_fitness=ga_instance.last_generation_fitness
+            )[1]
+        )
+    )
+
+
 def run_ga(params, loader_function):
     """
     Run the Genetic Algorithm (GA) using pygad library.
@@ -109,7 +127,9 @@ def run_ga(params, loader_function):
         mutation_type="random",
         keep_parents=1,
         initial_population=initialize_population(num_genes, num_solutions),
-        parallel_processing=40,
+        logger=logger,
+        on_generation=on_generation,
+        parallel_processing=50,
     )
 
     ga_instance.run()
@@ -129,7 +149,7 @@ def loader_function_strategy_2() -> callable:
     # Read the data from CSV
     df = pd.read_csv("data/stock_data.csv")
 
-    train_df, valid_df, test_df = split_func(df)
+    train_df, test_df = split_func(df)
 
     # Define thresholds
     thresholds = (
@@ -143,15 +163,6 @@ def loader_function_strategy_2() -> callable:
         thresholds=thresholds,
         pkl_filename="data/strategy2_train_data.pkl",
         excel_filename="output/strategy2_train.xlsx",
-        export_excel=True,
-    )
-
-    # Load strategy 2 decisions
-    stock_decision_by_thresholds_validation = load_strategy_2(
-        df=valid_df,
-        thresholds=thresholds,
-        pkl_filename="data/strategy2_valid_data.pkl",
-        excel_filename="output/strategy2_valid.xlsx",
         export_excel=True,
     )
 
@@ -171,29 +182,18 @@ def loader_function_strategy_2() -> callable:
         print("Running fitness function for solution " + str(solution_idx))
         print("Weights are " + str(solution))
 
-        logger.debug(
-            "Running fitness function for solution " + str(solution_idx)
-        )
-        logger.debug("Weights are " + str(solution))
-
         # Use the solution to generate trading signals and calculate returns for the training set
         RoR, volatility, sharpe_ratio = strategy2_fitness_function(
             df, solution, stock_decision_by_thresholds_train
         )
 
-        # Optimize the strategy on the training set (this step can vary based on the problem)
-        # For simplicity, we'll assume the strategy is optimized if it has a positive Sharpe Ratio on the training set
-        if sharpe_ratio <= 0:
-            return -np.inf  # This will make the GA avoid such solutions
-
-        # Now, evaluate the strategy on the validation set
-        RoR, volatility, sharpe_ratio = strategy2_fitness_function(
-            df, solution, stock_decision_by_thresholds_validation
-        )
-
-        print("Validating fitness function for solution " + str(sharpe_ratio))
-        logger.debug(
-            "Validating fitness function for solution " + str(sharpe_ratio)
+        print(
+            "Train fitness function for solution "
+            + str(sharpe_ratio)
+            + "\t"
+            + str(volatility)
+            + "\t"
+            + str(RoR)
         )
 
         return sharpe_ratio
@@ -209,7 +209,15 @@ if __name__ == "__main__":
         "crossover_probability": [0.95],
     }
     for i in range(50):
-        with open("output/strategy2_run.txt", "a") as f:
+        # Get the current timestamp
+        current_timestamp = datetime.datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
+        with open("output/strategy2_train_run.txt", "a") as f:
+            f.write(
+                f"--------Starting a new GA instance at {current_timestamp}.------------\n"
+            )
             f.write(
                 f"Starting running GA for strategy 2 with parameters. Run {i + 1}\n"
             )
@@ -221,7 +229,7 @@ if __name__ == "__main__":
         solution, solution_fitness, _ = run_ga(
             all_params[0], loader_function_strategy_2
         )
-        with open("output/strategy2_run.txt", "a") as f:
+        with open("output/strategy2_train_run.txt", "a") as f:
             f.write(
                 str(i)
                 + "\t"
@@ -229,4 +237,7 @@ if __name__ == "__main__":
                 + "\t"
                 + str(solution_fitness)
                 + "\n"
+            )
+            f.write(
+                f"----------Finished running GA for strategy 2. Run {i + 1}-------------\n"
             )
