@@ -194,7 +194,10 @@ def calculate_metrics(
         RoR = sum(returns_only)
 
         volatility = np.std(returns_only)
-        sharpe_ratio = (RoR - risk_free_rate) / volatility
+        if volatility == 0:
+            sharpe_ratio = 0
+        else:
+            sharpe_ratio = (RoR - risk_free_rate) / volatility
 
         return RoR, volatility, sharpe_ratio
     except Exception:

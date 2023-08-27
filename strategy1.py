@@ -40,14 +40,14 @@ def get_thresholds_decision(
             dc.iloc[i]["event"] == "DR"
             and p_ext.iloc[i + 1].name - dc.iloc[i].name > 0
         ):
-            j = dc.iloc[i].name * 2
+            j = dc.iloc[i].name + ((dc.iloc[i].name - p_ext.iloc[i].name) * 2)
             if j < len(prices):
                 decisions[j] = "b"
         elif (
             dc.iloc[i]["event"] == "UR"
             and p_ext.iloc[i + 1].name - dc.iloc[i].name > 0
         ):
-            j = dc.iloc[i].name * 2
+            j = dc.iloc[i].name + ((dc.iloc[i].name - p_ext.iloc[i].name) * 2)
             if j < len(prices):
                 decisions[j] = "s"
         i += 1
@@ -66,6 +66,7 @@ def calculate_decision(row: pd.Series, weights: List[float]) -> str:
     Returns:
     - str: Decision.
     """
+
     decisions_options = [("s", 0), ("h", 0), ("b", 0)]
     for i in range(1, len(weights) + 1):
         if row[i] == "b":
@@ -84,7 +85,7 @@ def calculate_decision(row: pd.Series, weights: List[float]) -> str:
                 decisions_options[1][1] + weights[i - 1],
             )
 
-    return max(decisions_options, key=lambda x: x[1])[0]
+        return max(decisions_options, key=lambda x: x[1])[0]
 
 
 def set_decisions(
