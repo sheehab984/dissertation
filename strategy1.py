@@ -41,15 +41,24 @@ def get_thresholds_decision(
             and p_ext.iloc[i + 1].name - dc.iloc[i].name > 0
         ):
             j = dc.iloc[i].name + ((dc.iloc[i].name - p_ext.iloc[i].name) * 2)
-            if j < len(prices):
-                decisions[j] = "b"
+            dc_index = dc[dc.index <= j].last_valid_index()
+            if dc_index is None:
+                dc_index = dc.iloc[0].name
+            if dc.loc[dc_index]["event"] == "DR":
+                if j < len(prices):
+                    decisions[j] = "b"
         elif (
             dc.iloc[i]["event"] == "UR"
             and p_ext.iloc[i + 1].name - dc.iloc[i].name > 0
         ):
             j = dc.iloc[i].name + ((dc.iloc[i].name - p_ext.iloc[i].name) * 2)
-            if j < len(prices):
-                decisions[j] = "s"
+            dc_index = dc[dc.index <= j].last_valid_index()
+            if dc_index is None:
+                dc_index = dc.iloc[0].name
+            if dc.loc[dc_index]["event"] == "UR":
+                if j < len(prices):
+                    decisions[j] = "s"
+
         i += 1
 
     return decisions
