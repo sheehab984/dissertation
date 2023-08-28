@@ -12,7 +12,7 @@ from strategy3 import load_strategy_3, strategy3_fitness_function
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    filename="app3_2.log",
+    filename="app3.log",
     filemode="w",
 )  # 'w' will overwrite the log file each time the script runs. Use 'a' to append.
 
@@ -73,7 +73,7 @@ def initialize_population(num_genes, sol_per_pop):
 def on_generation(ga_instance):
     current_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    with open("output/strategy3_train_run_1.txt", "a") as f:
+    with open("output/strategy3_train_run_2.txt", "a") as f:
         f.write(f"Generation completed at {current_timestamp}.\n")
 
     ga_instance.logger.info(
@@ -121,8 +121,6 @@ def run_ga(params, loader_function):
         parent_selection_type="tournament",
         K_tournament=tournament_size,
         crossover_probability=crossover_probability,
-        on_crossover=on_crossover,
-        on_mutation=on_mutation,
         mutation_probability=mutation_probability,
         mutation_type="random",
         keep_parents=1,
@@ -160,7 +158,7 @@ def loader_function_strategy_3() -> callable:
     stock_decision_by_thresholds_train = load_strategy_3(
         df=test_df,
         thresholds=thresholds,
-        pkl_filename="data/strategy3_train_data_1.pkl",
+        pkl_filename="data/strategy3_train_data_2.pkl",
     )
 
     def fitness_func(
@@ -211,7 +209,7 @@ if __name__ == "__main__":
             "%Y-%m-%d %H:%M:%S"
         )
 
-        with open("output/strategy3_train_run_1.txt", "a") as f:
+        with open("output/strategy3_train_run_2.txt", "a") as f:
             f.write(
                 f"--------Starting a new GA instance at {current_timestamp}.------------\n"
             )
@@ -226,7 +224,7 @@ if __name__ == "__main__":
         solution, solution_fitness, _ = run_ga(
             all_params[0], loader_function_strategy_3
         )
-        with open("output/strategy3_train_run_1.txt", "a") as f:
+        with open("output/strategy3_train_run_2.txt", "a") as f:
             f.write(
                 str(i)
                 + "\t"
