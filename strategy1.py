@@ -85,7 +85,7 @@ def calculate_decision(row: pd.Series, weights: List[float]) -> str:
                 decisions_options[1][1] + weights[i - 1],
             )
 
-        return max(decisions_options, key=lambda x: x[1])[0]
+    return max(decisions_options, key=lambda x: x[1])[0]
 
 
 def set_decisions(
