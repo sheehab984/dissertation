@@ -269,4 +269,4 @@ def strategy1_fitness_function(
         RoRs[idx] = RoR
         volatility_list[idx] = volatility
 
-    return np.mean(RoRs), np.mean(volatility_list), np.mean(sharpe_ratios)
+    return RoRs, volatility_list, sharpe_ratios

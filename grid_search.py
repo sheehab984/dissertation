@@ -134,7 +134,6 @@ def loader_function_strategy_1() -> callable:
         np.array([0.098, 0.22, 0.48, 0.72, 0.98, 1.22, 1.55, 1.70, 2, 2.55])
         / 100
     )
-
     # Load strategy 1 decisions
     stock_decision_by_thresholds_train = load_strategy_1(
         df=train_df,
