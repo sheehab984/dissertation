@@ -162,3 +162,5 @@ Dataset/
 .vscode/
 data/
 output/
+*.pyc
+.DS_Store
