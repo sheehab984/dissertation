@@ -64,7 +64,7 @@ The core trading strategies are detailed as follows:
 
 ## Installation
 
-1. Clone the repository: `git clone https://github.com/username/repo.git`
+1. Clone the repository.
 2. Switch to the main branch: `git checkout main`
 3. Set up a virtual environment or an Anaconda environment.
 4. Install required packages: `pip install -r requirements.txt`
